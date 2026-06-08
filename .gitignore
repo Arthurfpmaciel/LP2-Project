@@ -1,0 +1,42 @@
+# Maven build output
+target/
+
+# Local application data
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.sqlite
+data/*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime and temporary files
+*.pid
+*.tmp
+*.swp
+*.swo
+
+# Tooling metadata
+.agents/
+.codex/
