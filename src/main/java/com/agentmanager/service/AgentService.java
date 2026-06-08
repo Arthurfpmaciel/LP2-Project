@@ -13,7 +13,6 @@ import com.agentmanager.repository.AgentRepository;
 
 @Service
 public class AgentService {
-
     private final AgentRepository agentRepository;
 
     public AgentService(AgentRepository agentRepository) {

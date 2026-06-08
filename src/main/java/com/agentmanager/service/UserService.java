@@ -13,15 +13,17 @@ import com.agentmanager.model.User;
 import com.agentmanager.model.PlanType;
 import com.agentmanager.repository.UserRepository;
 
-
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<UserResponse> list() {
@@ -80,7 +82,7 @@ public class UserService {
     private void applyRequest(User user, UserRequest request) {
         user.setName(request.name());
         user.setEmail(request.email());
-        user.setPassword(request.password());
+        user.setPassword(passwordEncoder.encode(request.password()));
         user.setPlanType(request.planType());
     }
 
