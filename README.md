@@ -57,27 +57,10 @@ docker compose up --build
 
 Atualmente somente foi estabelecida a arquitetura e regras de negócio básicas, principalmentes as que dizem respeito ao banco de dados.
 
-## Recursos
+## Próximos Passos
 
-- `GET /api/users`
-- `GET /api/users/{id}`
-- `POST /api/users`
-- `PUT /api/users/{id}`
-- `DELETE /api/users/{id}`
-- `GET /api/api-keys?userId=1`
-- `GET /api/api-keys/{id}`
-- `POST /api/api-keys`
-- `DELETE /api/api-keys/{id}`
-- `GET /api/agents?level=FREE`
-- `GET /api/agents/{id}`
-- `POST /api/agents`
-- `PUT /api/agents/{id}`
-- `DELETE /api/agents/{id}`
-- `GET /api/conversations?apiKeyId=1`
-- `GET /api/conversations?agentId=1`
-- `GET /api/conversations/{id}`
-- `POST /api/conversations`
-- `DELETE /api/conversations/{id}`
+* user login para que usuários façam requisições 
+* implementar agentes
 
 ## Exemplos
 
@@ -111,4 +94,16 @@ Registrar conversa:
 curl -X POST http://localhost:8080/api/conversations \
   -H "Content-Type: application/json" \
   -d '{"apiKeyId":1,"agentId":1,"input":"Ola","output":"Ola!","inputTokens":3,"outputTokens":4,"latencyMs":120}'
+```
+
+Consultar total de tokens por usuario:
+
+```bash
+curl http://localhost:8080/api/conversations/tokens/users/1
+```
+
+Consultar total de tokens por chave de API:
+
+```bash
+curl http://localhost:8080/api/conversations/tokens/api-keys/1
 ```

@@ -4,8 +4,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.agentmanager.dto.ConversationTokensByApiKeyResponse;
 import com.agentmanager.dto.ConversationRequest;
 import com.agentmanager.dto.ConversationResponse;
+import com.agentmanager.dto.ConversationTokensResponse;
 import com.agentmanager.exception.BusinessException;
 import com.agentmanager.exception.ResourceNotFoundException;
 import com.agentmanager.model.Agent;
@@ -19,15 +21,18 @@ public class ConversationService {
     private final ConversationRepository conversationRepository;
     private final ApiKeyService apiKeyService;
     private final AgentService agentService;
+    private final UserService userService;
 
     public ConversationService(
             ConversationRepository conversationRepository,
             ApiKeyService apiKeyService,
-            AgentService agentService
+            AgentService agentService,
+            UserService userService
     ) {
         this.conversationRepository = conversationRepository;
         this.apiKeyService = apiKeyService;
         this.agentService = agentService;
+        this.userService = userService;
     }
 
     public List<ConversationResponse> list(Long apiKeyId, Long agentId) {
@@ -42,6 +47,33 @@ public class ConversationService {
 
     public ConversationResponse findById(Long id) {
         return toResponse(getEntity(id));
+    }
+
+    public ConversationTokensResponse getTotalTokensByUser(Long userId) {
+        userService.getEntity(userId);
+        Object[] result = conversationRepository.getTokenTotalsByUserId(userId);
+        Long totalInputTokens = ((Number) result[0]).longValue();
+        Long totalOutputTokens = ((Number) result[1]).longValue();
+        return new ConversationTokensResponse(
+                userId,
+                totalInputTokens,
+                totalOutputTokens,
+                totalInputTokens + totalOutputTokens
+        );
+    }
+
+    public ConversationTokensByApiKeyResponse getTotalTokensByApiKey(Long apiKeyId) {
+        apiKeyService.getEntity(apiKeyId);
+        Object[] result = conversationRepository.getTokenTotalsByApiKeyId(apiKeyId);
+        Long totalInputTokens = ((Number) result[0]).longValue();
+        Long totalOutputTokens = ((Number) result[1]).longValue();
+
+        return new ConversationTokensByApiKeyResponse(
+                apiKeyId,
+                totalInputTokens,
+                totalOutputTokens,
+                totalInputTokens + totalOutputTokens
+        );
     }
 
     @Transactional
@@ -89,4 +121,5 @@ public class ConversationService {
                 conversation.getCreatedAt()
         );
     }
+
 }

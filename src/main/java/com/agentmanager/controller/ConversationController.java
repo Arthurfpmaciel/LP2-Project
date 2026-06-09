@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.agentmanager.dto.ConversationRequest;
 import com.agentmanager.dto.ConversationResponse;
+import com.agentmanager.dto.ConversationTokensByApiKeyResponse;
+import com.agentmanager.dto.ConversationTokensResponse;
 import com.agentmanager.service.ConversationService;
 
 @RestController
@@ -38,6 +40,16 @@ public class ConversationController {
     @GetMapping("/{id}")
     public ConversationResponse findById(@PathVariable Long id) {
         return conversationService.findById(id);
+    }
+
+    @GetMapping("/tokens/users/{userId}")
+    public ConversationTokensResponse getTotalTokensByUser(@PathVariable Long userId) {
+        return conversationService.getTotalTokensByUser(userId);
+    }
+
+    @GetMapping("/tokens/api-keys/{apiKeyId}")
+    public ConversationTokensByApiKeyResponse getTotalTokensByApiKey(@PathVariable Long apiKeyId) {
+        return conversationService.getTotalTokensByApiKey(apiKeyId);
     }
 
     @PostMapping
