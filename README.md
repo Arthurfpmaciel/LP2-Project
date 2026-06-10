@@ -1,11 +1,11 @@
 # Agent Manager API
 
-API RESTful em Java + Spring Boot para uma estrutura inicial gerenciamento de agentes de IA.
+API RESTful em Java + Spring Boot para o gerenciamento de agentes de IA.
 
 ## Estrutura
 
 ```text
-projeto2/
+root/
 ├── src/
 │   └── main/
 │       ├── java/
@@ -61,49 +61,3 @@ Atualmente somente foi estabelecida a arquitetura e regras de negócio básicas,
 
 * user login para que usuários façam requisições 
 * implementar agentes
-
-## Exemplos
-
-Criar usuario:
-
-```bash
-curl -X POST http://localhost:8080/api/users \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Usuario","email":"user@example.com","password":"123456","planType":"PLUS"}'
-```
-
-Criar chave de API:
-
-```bash
-curl -X POST http://localhost:8080/api/api-keys \
-  -H "Content-Type: application/json" \
-  -d '{"userId":1}'
-```
-
-Criar agente:
-
-```bash
-curl -X POST http://localhost:8080/api/agents \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Agente teste","description":"Agente inicial para testes","level":"FREE"}'
-```
-
-Registrar conversa:
-
-```bash
-curl -X POST http://localhost:8080/api/conversations \
-  -H "Content-Type: application/json" \
-  -d '{"apiKeyId":1,"agentId":1,"input":"Ola","output":"Ola!","inputTokens":3,"outputTokens":4,"latencyMs":120}'
-```
-
-Consultar total de tokens por usuario:
-
-```bash
-curl http://localhost:8080/api/conversations/tokens/users/1
-```
-
-Consultar total de tokens por chave de API:
-
-```bash
-curl http://localhost:8080/api/conversations/tokens/api-keys/1
-```
