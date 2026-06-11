@@ -8,6 +8,7 @@ import com.agentmanager.dto.ConversationTokensByApiKeyResponse;
 import com.agentmanager.dto.ConversationRequest;
 import com.agentmanager.dto.ConversationResponse;
 import com.agentmanager.dto.ConversationTokensResponse;
+import com.agentmanager.dto.LlmResponse;
 import com.agentmanager.exception.BusinessException;
 import com.agentmanager.exception.ResourceNotFoundException;
 import com.agentmanager.model.Agent;
@@ -22,17 +23,20 @@ public class ConversationService {
     private final ApiKeyService apiKeyService;
     private final AgentService agentService;
     private final UserService userService;
+    private final GroqService groqService;
 
     public ConversationService(
             ConversationRepository conversationRepository,
             ApiKeyService apiKeyService,
             AgentService agentService,
-            UserService userService
+            UserService userService,
+            GroqService groqService
     ) {
         this.conversationRepository = conversationRepository;
         this.apiKeyService = apiKeyService;
         this.agentService = agentService;
         this.userService = userService;
+        this.groqService = groqService;
     }
 
     public List<ConversationResponse> list(Long apiKeyId, Long agentId) {
@@ -119,6 +123,14 @@ public class ConversationService {
                 conversation.getOutputTokens(),
                 conversation.getLatencyMs(),
                 conversation.getCreatedAt()
+        );
+    }
+
+    public LlmResponse askLlm(Long userId, String input) {
+        userService.getEntity(userId);
+        
+        return groqService.complete("você é um assistente que ajuda a responder perguntas de usuários, responda de forma clara e objetiva.",
+            input
         );
     }
 

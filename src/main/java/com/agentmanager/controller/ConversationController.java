@@ -17,6 +17,8 @@ import com.agentmanager.dto.ConversationRequest;
 import com.agentmanager.dto.ConversationResponse;
 import com.agentmanager.dto.ConversationTokensByApiKeyResponse;
 import com.agentmanager.dto.ConversationTokensResponse;
+import com.agentmanager.dto.InnerLLMPromptRequest;
+import com.agentmanager.dto.LlmResponse;
 import com.agentmanager.service.ConversationService;
 
 @RestController
@@ -62,5 +64,13 @@ public class ConversationController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         conversationService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/llm/users/{userId}")
+    public LlmResponse askLlm(
+        @PathVariable Long userId,
+        @Valid @RequestBody InnerLLMPromptRequest request
+    ) {
+        return conversationService.askLlm(userId, request.input());
     }
 }
