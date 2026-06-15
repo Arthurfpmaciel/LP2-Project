@@ -52,6 +52,11 @@ public class ApiKeyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Chave de API nao encontrada: " + id));
     }
 
+    public ApiKey getEntityByValue(String value) {
+        return apiKeyRepository.findByValue(value)
+                .orElseThrow(() -> new ResourceNotFoundException("Chave de API inválida."));
+    }
+
     private String generateValue() {
         // byte[] bytes = new byte[32];
         String value;

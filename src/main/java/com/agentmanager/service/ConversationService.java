@@ -171,13 +171,32 @@ public class ConversationService {
                 conversation.getCreatedAt()
         );
     }
+    @Transactional
+    public LlmResponse askLlm(Long agentId, String apiKeyValue, String input) {
+        ApiKey apiKey = apiKeyService.getEntityByValue(apiKeyValue);
+        User user = apiKey.getUser();
+        Agent agent = agentService.getEntity(agentId);
 
-    public LlmResponse askLlm(Long userId, String input) {
-        userService.getEntity(userId);
-        
-        return groqService.complete("você é um assistente que ajuda a responder perguntas de usuários, responda de forma clara e objetiva.",
-            input
-        );
+        if (!user.getPlanType().canAccess(agent.getLevel())){
+            throw new BusinessException("O plano no usuário não permite acesso a este agente.");
+        }
+
+        LlmResponse llmResponse = groqService.complete("você é um assistente que ajuda a responder perguntas de usuários, responda de forma clara e objetiva.",input);
+
+        // TODO: validar se o usuario ainda tem tokens disponíveis antes de enviar para a API
+
+        validateDailyTokenLimit(user, llmResponse.inputTokens(), llmResponse.outputTokens());
+        Conversation conversation = new Conversation();
+        conversation.setAgent(agent);
+        conversation.setApiKey(apiKey);
+        conversation.setInput(input);
+        conversation.setInputTokens(llmResponse.inputTokens());
+        conversation.setOutputTokens(llmResponse.outputTokens());
+        conversation.setLatencyMs(llmResponse.latencyMs());
+        conversation.setOutput(llmResponse.content());
+
+        conversationRepository.save(conversation);
+        return llmResponse;
     }
 
 }

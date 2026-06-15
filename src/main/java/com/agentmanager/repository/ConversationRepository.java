@@ -38,6 +38,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
               and c.createdAt >= :startOfDay
               and c.createdAt < :startOfNextDay
             """)
+            
     Long getDailyTokenTotalByUserId(
             @Param("userId") Long userId,
             @Param("startOfDay") LocalDateTime startOfDay,

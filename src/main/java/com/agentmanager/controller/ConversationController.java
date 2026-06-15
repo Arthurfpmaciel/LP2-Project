@@ -67,12 +67,11 @@ public class ConversationController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/llm/users/{userId}")
+    @PostMapping("/llm")
     public LlmResponse askLlm(
-        @PathVariable Long userId,
         @Valid @RequestBody InnerLLMPromptRequest request
     ) {
-        return conversationService.askLlm(userId, request.input());
+        return conversationService.askLlm(request.agentId(), request.apiKey(), request.input());
     }
 
     @GetMapping("/tokens/users/{userId}/daily")
