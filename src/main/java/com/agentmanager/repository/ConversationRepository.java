@@ -1,5 +1,6 @@
 package com.agentmanager.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,4 +30,18 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
             where c.apiKey.id = :apiKeyId
             """)
     Object[] getTokenTotalsByApiKeyId(@Param("apiKeyId") Long apiKeyId);
+
+    @Query("""
+            select coalesce(sum(c.inputTokens + c.outputTokens), 0)
+            from Conversation c
+            where c.apiKey.user.id = :userId
+              and c.createdAt >= :startOfDay
+              and c.createdAt < :startOfNextDay
+            """)
+    Long getDailyTokenTotalByUserId(
+            @Param("userId") Long userId,
+            @Param("startOfDay") LocalDateTime startOfDay,
+            @Param("startOfNextDay") LocalDateTime startOfNextDay
+    );
+
 }

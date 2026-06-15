@@ -21,6 +21,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, List.of(exception.getMessage()));
     }
 
+    @ExceptionHandler(TokenLimitExceededException.class)
+    public ResponseEntity<ApiError> handleTokenLimitExceeded(TokenLimitExceededException exception) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, List.of(exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception) {
         List<String> messages = exception.getFieldErrors().stream()

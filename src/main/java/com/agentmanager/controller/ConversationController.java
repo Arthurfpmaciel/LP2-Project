@@ -17,6 +17,7 @@ import com.agentmanager.dto.ConversationRequest;
 import com.agentmanager.dto.ConversationResponse;
 import com.agentmanager.dto.ConversationTokensByApiKeyResponse;
 import com.agentmanager.dto.ConversationTokensResponse;
+import com.agentmanager.dto.DailyTokenUsageResponse;
 import com.agentmanager.dto.InnerLLMPromptRequest;
 import com.agentmanager.dto.LlmResponse;
 import com.agentmanager.service.ConversationService;
@@ -72,5 +73,12 @@ public class ConversationController {
         @Valid @RequestBody InnerLLMPromptRequest request
     ) {
         return conversationService.askLlm(userId, request.input());
+    }
+
+    @GetMapping("/tokens/users/{userId}/daily")
+    public DailyTokenUsageResponse getDailyTokenUsage(
+            @PathVariable Long userId
+    ) {
+        return conversationService.getDailyTokenUsage(userId);
     }
 }
