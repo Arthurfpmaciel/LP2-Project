@@ -16,8 +16,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 @Service
-@ConditionalOnProperty(name = "llm.provider", havingValue = "groq", matchIfMissing = true)
-public class GroqService implements LlmService {
+@ConditionalOnProperty(name = "llm.provider", havingValue = "minimax")
+public class MinimaxService implements LlmService {
 
     private final RestClient restClient;
     private final String apiKey;
@@ -25,13 +25,13 @@ public class GroqService implements LlmService {
     private final Double temperature;
     private final Integer maxTokens;
 
-    public GroqService(
+    public MinimaxService(
             RestClient.Builder restClientBuilder,
-            @Value("${groq.base-url}") String baseUrl,
-            @Value("${groq.api-key:}") String apiKey,
-            @Value("${groq.model}") String model,
-            @Value("${groq.temperature}") Double temperature,
-            @Value("${groq.max-tokens}") Integer maxTokens
+            @Value("${minimax.base-url}") String baseUrl,
+            @Value("${minimax.api-key:}") String apiKey,
+            @Value("${minimax.model}") String model,
+            @Value("${minimax.temperature}") Double temperature,
+            @Value("${minimax.max-tokens}") Integer maxTokens
     ) {
         this.restClient = restClientBuilder
                 .baseUrl(baseUrl)
@@ -43,10 +43,7 @@ public class GroqService implements LlmService {
         this.maxTokens = maxTokens;
     }
 
-    public Integer maxTokensPerRequest() {
-        return maxTokens;
-    }
-
+    @Override
     public LlmResponse complete(String systemPrompt, String userPrompt) {
         return chat(List.of(
                 new LlmMessage("system", systemPrompt),
@@ -54,9 +51,14 @@ public class GroqService implements LlmService {
         ));
     }
 
-    public LlmResponse chat(List<LlmMessage> messages) {
+    @Override
+    public Integer maxTokensPerRequest() {
+        return maxTokens;
+    }
+
+    private LlmResponse chat(List<LlmMessage> messages) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new BusinessException("Sem chave de API do Groq cadastrada.");
+            throw new BusinessException("Sem chave de API do MiniMax cadastrada.");
         }
         if (messages == null || messages.isEmpty()) {
             throw new BusinessException("Mensagem não pode ser vazia");
@@ -64,30 +66,30 @@ public class GroqService implements LlmService {
 
         Instant start = Instant.now();
         try {
-            GroqChatResponse response = restClient.post()
+            MinimaxChatResponse response = restClient.post()
                     .uri("/chat/completions")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
-                    .body(new GroqChatRequest(model, messages, temperature, maxTokens))
+                    .body(new MinimaxChatRequest(model, messages, temperature, maxTokens))
                     .retrieve()
-                    .body(GroqChatResponse.class);
+                    .body(MinimaxChatResponse.class);
 
             return toLlmResponse(response, Duration.between(start, Instant.now()).toMillis());
         } catch (RestClientResponseException exception) {
-            throw new BusinessException("Erro ao chamar a Groq: HTTP "
+            throw new BusinessException("Erro ao chamar o MiniMax: HTTP "
                     + exception.getStatusCode().value() + " - " + exception.getResponseBodyAsString());
         } catch (RuntimeException exception) {
-            throw new BusinessException("Erro ao chamar a Groq: " + exception.getMessage());
+            throw new BusinessException("Erro ao chamar o MiniMax: " + exception.getMessage());
         }
     }
 
-    private LlmResponse toLlmResponse(GroqChatResponse response, Long latencyMs) {
+    private LlmResponse toLlmResponse(MinimaxChatResponse response, Long latencyMs) {
         if (response == null || response.choices() == null || response.choices().isEmpty()) {
-            throw new BusinessException("Groq retornou uma resposta vazia.");
+            throw new BusinessException("MiniMax retornou uma resposta vazia.");
         }
 
-        GroqChoice firstChoice = response.choices().get(0);
+        MinimaxChoice firstChoice = response.choices().get(0);
         String content = firstChoice.message() == null ? "" : firstChoice.message().content();
-        GroqUsage usage = response.usage();
+        MinimaxUsage usage = response.usage();
 
         content = cleanThinking(content);
 
@@ -99,14 +101,13 @@ public class GroqService implements LlmService {
     }
 
     private String cleanThinking(String content) {
-    if (content == null) {
-        return "";
+        if (content == null) {
+            return "";
+        }
+        return content.replaceAll("(?s)<think>.*?</think>\\s*", "").trim();
     }
 
-    return content.replaceAll("(?s)<think>.*?</think>\\s*", "").trim();
-    }
-
-    private record GroqChatRequest(
+    private record MinimaxChatRequest(
             String model,
             List<LlmMessage> messages,
             Double temperature,
@@ -114,19 +115,19 @@ public class GroqService implements LlmService {
     ) {
     }
 
-    private record GroqChatResponse(
+    private record MinimaxChatResponse(
             String model,
-            List<GroqChoice> choices,
-            GroqUsage usage
+            List<MinimaxChoice> choices,
+            MinimaxUsage usage
     ) {
     }
 
-    private record GroqChoice(
+    private record MinimaxChoice(
             LlmMessage message
     ) {
     }
 
-    private record GroqUsage(
+    private record MinimaxUsage(
             @JsonProperty("prompt_tokens") Integer promptTokens,
             @JsonProperty("completion_tokens") Integer completionTokens,
             @JsonProperty("total_tokens") Integer totalTokens

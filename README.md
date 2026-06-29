@@ -45,6 +45,26 @@ root/
 
 ## Execução com Docker
 
+Crie um arquivo `.env` na raiz. O provedor LLM é selecionado por `LLM_PROVIDER` (`groq` por padrão; `minimax` também suportado):
+
+**Groq (default):**
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=sua_chave_aqui
+GROQ_MODEL=qwen/qwen3-32b
+GROQ_TEMPERATURE=0.7
+GROQ_MAX_TOKENS=1024
+```
+
+**MiniMax:**
+```env
+LLM_PROVIDER=minimax
+MINIMAX_API_KEY=sua_chave_aqui
+MINIMAX_MODEL=MiniMax-M3
+MINIMAX_TEMPERATURE=0.7
+MINIMAX_MAX_TOKENS=1024
+```
+
 ```bash
 docker compose up --build
 ```
@@ -55,9 +75,4 @@ docker compose up --build
 
 ## Status
 
-Atualmente somente foi estabelecida a arquitetura e regras de negócio básicas, principalmentes as que dizem respeito ao banco de dados.
-
-## Próximos Passos
-
-* user login para que usuários façam requisições 
-* implementar agentes
+API com CRUD de usuários, agentes, API keys e conversas; autenticação por login; integração com Groq via `POST /api/conversations/llm`; e controle de tokens por plano (`FREE` 10k, `PRO` 50k, `MASTER` 100k).

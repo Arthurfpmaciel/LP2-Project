@@ -27,20 +27,20 @@ public class ConversationService {
     private final ApiKeyService apiKeyService;
     private final AgentService agentService;
     private final UserService userService;
-    private final GroqService groqService;
+    private final LlmService llmService;
 
     public ConversationService(
             ConversationRepository conversationRepository,
             ApiKeyService apiKeyService,
             AgentService agentService,
             UserService userService,
-            GroqService groqService
+            LlmService llmService
     ) {
         this.conversationRepository = conversationRepository;
         this.apiKeyService = apiKeyService;
         this.agentService = agentService;
         this.userService = userService;
-        this.groqService = groqService;
+        this.llmService = llmService;
     }
 
     public List<ConversationResponse> list(Long apiKeyId, Long agentId) {
@@ -181,11 +181,10 @@ public class ConversationService {
             throw new BusinessException("O plano no usuário não permite acesso a este agente.");
         }
 
-        LlmResponse llmResponse = groqService.complete("você é um assistente que ajuda a responder perguntas de usuários, responda de forma clara e objetiva.",input);
+        validateDailyTokenLimit(user, estimateInputTokens(input), llmService.maxTokensPerRequest());
 
-        // TODO: validar se o usuario ainda tem tokens disponíveis antes de enviar para a API
+        LlmResponse llmResponse = llmService.complete("você é um assistente que ajuda a responder perguntas de usuários, responda de forma clara e objetiva.",input);
 
-        validateDailyTokenLimit(user, llmResponse.inputTokens(), llmResponse.outputTokens());
         Conversation conversation = new Conversation();
         conversation.setAgent(agent);
         conversation.setApiKey(apiKey);
@@ -197,6 +196,13 @@ public class ConversationService {
 
         conversationRepository.save(conversation);
         return llmResponse;
+    }
+
+    private int estimateInputTokens(String input) {
+        if (input == null || input.isBlank()) {
+            return 0;
+        }
+        return (input.length() + 3) / 4;
     }
 
 }
