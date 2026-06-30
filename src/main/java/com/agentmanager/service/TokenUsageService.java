@@ -27,9 +27,8 @@ public class TokenUsageService {
 
     public ConversationTokensResponse getTotalTokensByUser(Long userId) {
         userService.getEntity(userId);
-        Object[] result = conversationRepository.getTokenTotalsByUserId(userId);
-        Long totalInputTokens = ((Number) result[0]).longValue();
-        Long totalOutputTokens = ((Number) result[1]).longValue();
+        Long totalInputTokens = safeLong(conversationRepository.getTotalInputTokensByUserId(userId));
+        Long totalOutputTokens = safeLong(conversationRepository.getTotalOutputTokensByUserId(userId));
         return new ConversationTokensResponse(
                 userId,
                 totalInputTokens,
@@ -40,9 +39,8 @@ public class TokenUsageService {
 
     public ConversationTokensByApiKeyResponse getTotalTokensByApiKey(Long apiKeyId) {
         apiKeyService.getEntity(apiKeyId);
-        Object[] result = conversationRepository.getTokenTotalsByApiKeyId(apiKeyId);
-        Long totalInputTokens = ((Number) result[0]).longValue();
-        Long totalOutputTokens = ((Number) result[1]).longValue();
+        Long totalInputTokens = safeLong(conversationRepository.getTotalInputTokensByApiKeyId(apiKeyId));
+        Long totalOutputTokens = safeLong(conversationRepository.getTotalOutputTokensByApiKeyId(apiKeyId));
 
         return new ConversationTokensByApiKeyResponse(
                 apiKeyId,
@@ -69,10 +67,14 @@ public class TokenUsageService {
 
     public long getDailyTokenTotal(Long userId) {
         LocalDate today = LocalDate.now();
-        return conversationRepository.getDailyTokenTotalByUserId(
+        return safeLong(conversationRepository.getDailyTokenTotalByUserId(
                 userId,
                 today.atStartOfDay(),
                 today.plusDays(1).atStartOfDay()
-        );
+        ));
+    }
+
+    private Long safeLong(Long value) {
+        return value == null ? 0L : value;
     }
 }

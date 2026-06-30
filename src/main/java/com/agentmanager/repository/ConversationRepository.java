@@ -16,22 +16,32 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     List<Conversation> findByAgentId(Long agentId);
 
     @Query("""
-            select
-                coalesce(sum(c.inputTokens), 0),
-                coalesce(sum(c.outputTokens), 0)
+            select coalesce(sum(c.inputTokens), 0)
             from Conversation c
             where c.apiKey.user.id = :userId
             """)
-    Object[] getTokenTotalsByUserId(@Param("userId") Long userId);
+    Long getTotalInputTokensByUserId(@Param("userId") Long userId);
 
     @Query("""
-            select
-                coalesce(sum(c.inputTokens), 0),
-                coalesce(sum(c.outputTokens), 0)
+            select coalesce(sum(c.outputTokens), 0)
+            from Conversation c
+            where c.apiKey.user.id = :userId
+            """)
+    Long getTotalOutputTokensByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            select coalesce(sum(c.inputTokens), 0)
             from Conversation c
             where c.apiKey.id = :apiKeyId
             """)
-    Object[] getTokenTotalsByApiKeyId(@Param("apiKeyId") Long apiKeyId);
+    Long getTotalInputTokensByApiKeyId(@Param("apiKeyId") Long apiKeyId);
+
+    @Query("""
+            select coalesce(sum(c.outputTokens), 0)
+            from Conversation c
+            where c.apiKey.id = :apiKeyId
+            """)
+    Long getTotalOutputTokensByApiKeyId(@Param("apiKeyId") Long apiKeyId);
 
     @Query("""
             select coalesce(sum(c.inputTokens + c.outputTokens), 0)
