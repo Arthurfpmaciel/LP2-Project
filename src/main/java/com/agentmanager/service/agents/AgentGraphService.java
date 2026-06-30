@@ -98,9 +98,12 @@ public class AgentGraphService {
             return new AgentExecutionResult(agentLevel, intent, llmResponse);
         }
 
-        if (agentLevel == PlanType.MASTER && intent == AgentIntent.LOCAL_KNOWLEDGE) {
-            LlmResponse response = runMasterRag(input, tokenUsage, start);
-            return new AgentExecutionResult(agentLevel, intent, response);
+        if (agentLevel == PlanType.MASTER) {
+            List<KnowledgeChunk> chunks = localKnowledgeBase.retrieve(input, 3);
+            if (!chunks.isEmpty() || intent == AgentIntent.LOCAL_KNOWLEDGE) {
+                LlmResponse response = runMasterRag(input, tokenUsage, start, chunks);
+                return new AgentExecutionResult(agentLevel, AgentIntent.LOCAL_KNOWLEDGE, response);
+            }
         }
 
         if (intent == AgentIntent.IMD_SITE || intent == AgentIntent.LOCAL_KNOWLEDGE) {
@@ -152,8 +155,12 @@ public class AgentGraphService {
         return responseBuilder.build(cleanThinking(refined.content()), tokenUsage, start);
     }
 
-    private LlmResponse runMasterRag(String input, AgentTokenUsage tokenUsage, Instant start) {
-        List<KnowledgeChunk> chunks = localKnowledgeBase.retrieve(input, 3);
+    private LlmResponse runMasterRag(
+            String input,
+            AgentTokenUsage tokenUsage,
+            Instant start,
+            List<KnowledgeChunk> chunks
+    ) {
         String evidence = localKnowledgeBase.formatChunks(chunks);
 
         Result<String> draft = evidenceAnswerNode.answer(evidencePrompt(input, "Base local de conhecimento do IMD", evidence));

@@ -3,6 +3,7 @@ package com.agentmanager.service.agents.rag;
 import com.agentmanager.exception.BusinessException;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,32 +15,55 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 
 @Component
 public class LocalKnowledgeBase {
 
     private static final Pattern WORD_SPLIT = Pattern.compile("[^a-z0-9]+");
-    private final Path knowledgeBasePath;
+    private final ResourceLoader resourceLoader;
+    private final String knowledgeBaseLocation;
     private List<KnowledgeChunk> chunks = List.of();
 
     public LocalKnowledgeBase(
-            @Value("${imd.knowledge-base-path:src/main/resources/knowledge/imd_knowledge_base.md}") String knowledgeBasePath
+            ResourceLoader resourceLoader,
+            @Value("${imd.knowledge-base-path:classpath:knowledge/imd_knowledge_base.md}") String knowledgeBaseLocation
     ) {
-        this.knowledgeBasePath = Path.of(knowledgeBasePath);
+        this.resourceLoader = resourceLoader;
+        this.knowledgeBaseLocation = knowledgeBaseLocation;
     }
 
     @PostConstruct
     void load() {
-        if (!Files.exists(knowledgeBasePath)) {
-            chunks = List.of();
-            return;
-        }
+        Resource resource = resolveResource();
         try {
-            chunks = splitIntoChunks(Files.readString(knowledgeBasePath, StandardCharsets.UTF_8));
+            if (!resource.exists()) {
+                throw new BusinessException("Base local do IMD nao encontrada: " + knowledgeBaseLocation);
+            }
+            try (InputStream inputStream = resource.getInputStream()) {
+                String markdown = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+                chunks = splitIntoChunks(markdown);
+            }
         } catch (IOException exception) {
             throw new BusinessException("Erro ao carregar base local do IMD: " + exception.getMessage());
         }
+    }
+
+    private Resource resolveResource() {
+        if (knowledgeBaseLocation.startsWith("classpath:")
+                || knowledgeBaseLocation.startsWith("file:")
+                || knowledgeBaseLocation.startsWith("http:")
+                || knowledgeBaseLocation.startsWith("https:")) {
+            return resourceLoader.getResource(knowledgeBaseLocation);
+        }
+
+        Path path = Path.of(knowledgeBaseLocation);
+        if (Files.exists(path)) {
+            return resourceLoader.getResource("file:" + path.toAbsolutePath());
+        }
+        return resourceLoader.getResource(knowledgeBaseLocation);
     }
 
     public List<KnowledgeChunk> retrieve(String query, int limit) {
