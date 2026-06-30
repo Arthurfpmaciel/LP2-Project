@@ -18,5 +18,8 @@ services:
       MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-M3}
       MINIMAX_TEMPERATURE: ${MINIMAX_TEMPERATURE:-0.7}
       MINIMAX_MAX_TOKENS: ${MINIMAX_MAX_TOKENS:-1024}
+      TAVILY_BASE_URL: ${TAVILY_BASE_URL:-https://api.tavily.com}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_MAX_RESULTS: ${TAVILY_MAX_RESULTS:-5}
     volumes:
       - ./data:/app/data

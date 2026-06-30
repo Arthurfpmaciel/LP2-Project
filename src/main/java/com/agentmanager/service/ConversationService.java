@@ -1,6 +1,5 @@
 package com.agentmanager.service;
 
-import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +16,12 @@ import com.agentmanager.exception.TokenLimitExceededException;
 import com.agentmanager.model.Agent;
 import com.agentmanager.model.ApiKey;
 import com.agentmanager.model.Conversation;
+import com.agentmanager.model.PlanType;
 import com.agentmanager.model.User;
 import com.agentmanager.repository.ConversationRepository;
+import com.agentmanager.service.agents.AgentExecutionRequest;
+import com.agentmanager.service.agents.AgentExecutionResult;
+import com.agentmanager.service.agents.AgentGraphService;
 
 @Service
 public class ConversationService {
@@ -26,21 +29,24 @@ public class ConversationService {
     private final ConversationRepository conversationRepository;
     private final ApiKeyService apiKeyService;
     private final AgentService agentService;
-    private final UserService userService;
     private final LlmService llmService;
+    private final TokenUsageService tokenUsageService;
+    private final AgentGraphService agentGraphService;
 
     public ConversationService(
             ConversationRepository conversationRepository,
             ApiKeyService apiKeyService,
             AgentService agentService,
-            UserService userService,
-            LlmService llmService
+            LlmService llmService,
+            TokenUsageService tokenUsageService,
+            AgentGraphService agentGraphService
     ) {
         this.conversationRepository = conversationRepository;
         this.apiKeyService = apiKeyService;
         this.agentService = agentService;
-        this.userService = userService;
         this.llmService = llmService;
+        this.tokenUsageService = tokenUsageService;
+        this.agentGraphService = agentGraphService;
     }
 
     public List<ConversationResponse> list(Long apiKeyId, Long agentId) {
@@ -58,30 +64,11 @@ public class ConversationService {
     }
 
     public ConversationTokensResponse getTotalTokensByUser(Long userId) {
-        userService.getEntity(userId);
-        Object[] result = conversationRepository.getTokenTotalsByUserId(userId);
-        Long totalInputTokens = ((Number) result[0]).longValue();
-        Long totalOutputTokens = ((Number) result[1]).longValue();
-        return new ConversationTokensResponse(
-                userId,
-                totalInputTokens,
-                totalOutputTokens,
-                totalInputTokens + totalOutputTokens
-        );
+        return tokenUsageService.getTotalTokensByUser(userId);
     }
 
     public ConversationTokensByApiKeyResponse getTotalTokensByApiKey(Long apiKeyId) {
-        apiKeyService.getEntity(apiKeyId);
-        Object[] result = conversationRepository.getTokenTotalsByApiKeyId(apiKeyId);
-        Long totalInputTokens = ((Number) result[0]).longValue();
-        Long totalOutputTokens = ((Number) result[1]).longValue();
-
-        return new ConversationTokensByApiKeyResponse(
-                apiKeyId,
-                totalInputTokens,
-                totalOutputTokens,
-                totalInputTokens + totalOutputTokens
-        );
+        return tokenUsageService.getTotalTokensByApiKey(apiKeyId);
     }
 
     @Transactional
@@ -108,12 +95,7 @@ public class ConversationService {
     }
 
     private void validateDailyTokenLimit(User user, int inputTokens, int outputTokens) {
-        LocalDate today = LocalDate.now();
-        long usedToday = conversationRepository.getDailyTokenTotalByUserId(
-                user.getId(),
-                today.atStartOfDay(),
-                today.plusDays(1).atStartOfDay()
-        );
+        long usedToday = tokenUsageService.getDailyTokenTotal(user.getId());
         long requestedTokens = (long) inputTokens + outputTokens;
         long dailyLimit = user.getPlanType().getDailyTokenLimit();
 
@@ -128,23 +110,7 @@ public class ConversationService {
     }
 
     public DailyTokenUsageResponse getDailyTokenUsage(Long userId) {
-        User user = userService.getEntity(userId);
-        LocalDate today = LocalDate.now();
-        long consumedTokens = conversationRepository.getDailyTokenTotalByUserId(
-                userId,
-                today.atStartOfDay(),
-                today.plusDays(1).atStartOfDay()
-        );
-        long dailyLimit = user.getPlanType().getDailyTokenLimit();
-
-        double consumptionPercentage = dailyLimit == 0 ? 0 : (consumedTokens * 100.0) / dailyLimit;
-        return new DailyTokenUsageResponse(
-                userId,
-                user.getPlanType(),
-                consumedTokens,
-                dailyLimit,
-                consumptionPercentage
-        );
+        return tokenUsageService.getDailyTokenUsage(userId);
     }
 
     @Transactional
@@ -172,18 +138,24 @@ public class ConversationService {
         );
     }
     @Transactional
-    public LlmResponse askLlm(Long agentId, String apiKeyValue, String input) {
+    public LlmResponse askLlm(PlanType agentLevel, String apiKeyValue, String input) {
         ApiKey apiKey = apiKeyService.getEntityByValue(apiKeyValue);
         User user = apiKey.getUser();
-        Agent agent = agentService.getEntity(agentId);
+        Agent agent = agentService.getEntityByLevel(agentLevel);
 
-        if (!user.getPlanType().canAccess(agent.getLevel())){
-            throw new BusinessException("O plano no usuário não permite acesso a este agente.");
+        if (!user.getPlanType().canAccess(agentLevel)){
+            throw new BusinessException("O plano do usuario nao permite acesso ao agente " + agentLevel + ".");
         }
 
         validateDailyTokenLimit(user, estimateInputTokens(input), llmService.maxTokensPerRequest());
 
-        LlmResponse llmResponse = llmService.complete("você é um assistente que ajuda a responder perguntas de usuários, responda de forma clara e objetiva.",input);
+        AgentExecutionResult result = agentGraphService.run(
+                agentLevel,
+                new AgentExecutionRequest(input, user.getId(), apiKey.getId())
+        );
+        LlmResponse llmResponse = result.response();
+
+        validateDailyTokenLimit(user, llmResponse.inputTokens(), llmResponse.outputTokens());
 
         Conversation conversation = new Conversation();
         conversation.setAgent(agent);

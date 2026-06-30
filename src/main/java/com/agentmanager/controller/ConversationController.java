@@ -71,7 +71,7 @@ public class ConversationController {
     public LlmResponse askLlm(
         @Valid @RequestBody InnerLLMPromptRequest request
     ) {
-        return conversationService.askLlm(request.agentId(), request.apiKey(), request.input());
+        return conversationService.askLlm(request.agentLevel(), request.apiKey(), request.input());
     }
 
     @GetMapping("/tokens/users/{userId}/daily")
