@@ -11,8 +11,12 @@ public class AgentResponseBuilder {
 
     private final String model;
 
-    public AgentResponseBuilder(@Value("${groq.model}") String model) {
-        this.model = model;
+    public AgentResponseBuilder(
+            @Value("${llm.provider}") String provider,
+            @Value("${groq.model}") String groqModel,
+            @Value("${minimax.model}") String minimaxModel
+    ) {
+        this.model = "minimax".equalsIgnoreCase(provider) ? minimaxModel : groqModel;
     }
 
     public LlmResponse build(String content, AgentTokenUsage tokenUsage, Instant start) {

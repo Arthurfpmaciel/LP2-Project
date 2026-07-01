@@ -26,6 +26,14 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.TOO_MANY_REQUESTS, List.of(exception.getMessage()));
     }
 
+    @ExceptionHandler(UpstreamLlmException.class)
+    public ResponseEntity<ApiError> handleUpstreamLlm(UpstreamLlmException exception) {
+        HttpStatus status = exception.getUpstreamStatus() == 429
+                ? HttpStatus.TOO_MANY_REQUESTS
+                : HttpStatus.BAD_GATEWAY;
+        return build(status, List.of(exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception) {
         List<String> messages = exception.getFieldErrors().stream()

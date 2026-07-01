@@ -1,6 +1,7 @@
 package com.agentmanager.service.agents;
 
 import com.agentmanager.dto.LlmResponse;
+import com.agentmanager.exception.UpstreamLlmException;
 import com.agentmanager.model.PlanType;
 import com.agentmanager.service.agents.rag.KnowledgeChunk;
 import com.agentmanager.service.agents.rag.LocalKnowledgeBase;
@@ -14,6 +15,8 @@ import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import java.time.Instant;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -73,46 +76,74 @@ public class AgentGraphService {
     }
 
     public AgentExecutionResult run(PlanType agentLevel, AgentExecutionRequest request) {
-        Instant start = Instant.now();
-        AgentTokenUsage tokenUsage = AgentTokenUsage.empty();
-        String input = request.input();
+        try {
+            Instant start = Instant.now();
+            AgentTokenUsage tokenUsage = AgentTokenUsage.empty();
+            String input = request.input();
 
-        Result<String> routeResponse = routerNode.route(input);
-        tokenUsage = tokenUsage.plus(AgentTokenUsage.from(routeResponse));
-        AgentIntent intent = parseIntent(routeResponse.content());
+            Result<String> routeResponse = routerNode.route(input);
+            tokenUsage = tokenUsage.plus(AgentTokenUsage.from(routeResponse));
+            AgentIntent intent = parseIntent(routeResponse.content());
 
-        if (intent == AgentIntent.INVALID) {
-            LlmResponse response = responseBuilder.build(AgentPrompts.SAFETY_REFUSAL, tokenUsage, start);
-            return new AgentExecutionResult(agentLevel, intent, response);
-        }
-
-        if (agentLevel == PlanType.FREE) {
-            LlmResponse response = runFree(input, intent, tokenUsage, start);
-            return new AgentExecutionResult(agentLevel, intent, response);
-        }
-
-        if (intent == AgentIntent.TOKEN_USAGE) {
-            Result<String> response = tokenUsageNode.answer(tokenUsagePrompt(input, request));
-            tokenUsage = tokenUsage.plus(AgentTokenUsage.from(response));
-            LlmResponse llmResponse = responseBuilder.build(response.content(), tokenUsage, start);
-            return new AgentExecutionResult(agentLevel, intent, llmResponse);
-        }
-
-        if (agentLevel == PlanType.MASTER) {
-            List<KnowledgeChunk> chunks = localKnowledgeBase.retrieve(input, 3);
-            if (!chunks.isEmpty() || intent == AgentIntent.LOCAL_KNOWLEDGE) {
-                LlmResponse response = runMasterRag(input, tokenUsage, start, chunks);
-                return new AgentExecutionResult(agentLevel, AgentIntent.LOCAL_KNOWLEDGE, response);
+            if (intent == AgentIntent.INVALID) {
+                LlmResponse response = responseBuilder.build(AgentPrompts.SAFETY_REFUSAL, tokenUsage, start);
+                return new AgentExecutionResult(agentLevel, intent, response);
             }
-        }
 
-        if (intent == AgentIntent.IMD_SITE || intent == AgentIntent.LOCAL_KNOWLEDGE) {
-            LlmResponse response = runProSearch(input, tokenUsage, start);
+            if (agentLevel == PlanType.FREE) {
+                LlmResponse response = runFree(input, intent, tokenUsage, start);
+                return new AgentExecutionResult(agentLevel, intent, response);
+            }
+
+            if (intent == AgentIntent.TOKEN_USAGE) {
+                Result<String> response = tokenUsageNode.answer(tokenUsagePrompt(input, request));
+                tokenUsage = tokenUsage.plus(AgentTokenUsage.from(response));
+                LlmResponse llmResponse = responseBuilder.build(response.content(), tokenUsage, start);
+                return new AgentExecutionResult(agentLevel, intent, llmResponse);
+            }
+
+            if (agentLevel == PlanType.MASTER) {
+                List<KnowledgeChunk> chunks = localKnowledgeBase.retrieve(input, 3);
+                if (!chunks.isEmpty() || intent == AgentIntent.LOCAL_KNOWLEDGE) {
+                    LlmResponse response = runMasterRag(input, tokenUsage, start, chunks);
+                    return new AgentExecutionResult(agentLevel, AgentIntent.LOCAL_KNOWLEDGE, response);
+                }
+            }
+
+            if (intent == AgentIntent.IMD_SITE || intent == AgentIntent.LOCAL_KNOWLEDGE) {
+                LlmResponse response = runProSearch(input, tokenUsage, start);
+                return new AgentExecutionResult(agentLevel, intent, response);
+            }
+
+            LlmResponse response = runGenericWithRefinement(input, tokenUsage, start);
             return new AgentExecutionResult(agentLevel, intent, response);
+        } catch (RuntimeException e) {
+            int upstreamStatus = parseUpstreamStatus(e);
+            if (upstreamStatus > 0) {
+                throw new UpstreamLlmException(upstreamStatus, e.getMessage());
+            }
+            throw e;
         }
+    }
 
-        LlmResponse response = runGenericWithRefinement(input, tokenUsage, start);
-        return new AgentExecutionResult(agentLevel, intent, response);
+    private static final Pattern UPSTREAM_HTTP_STATUS = Pattern.compile("Erro HTTP (\\d{3})");
+
+    private static int parseUpstreamStatus(Throwable t) {
+        Throwable cur = t;
+        while (cur != null) {
+            String msg = cur.getMessage();
+            if (msg != null) {
+                Matcher m = UPSTREAM_HTTP_STATUS.matcher(msg);
+                if (m.find()) {
+                    try {
+                        return Integer.parseInt(m.group(1));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+            cur = cur.getCause();
+        }
+        return -1;
     }
 
     private LlmResponse runFree(String input, AgentIntent intent, AgentTokenUsage tokenUsage, Instant start) {
